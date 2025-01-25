@@ -1,0 +1,162 @@
+---
+title: "HW 1"
+subtitle: "STAT 5211"
+author: "Emma Johnson"
+date: "January 22, 2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR2)
+# alternate approach: 
+# college <- ISLR2::College
+```
+
+# 8: College Data
+
+## a)
+
+```{r 8a}
+college <- read.csv("C:/Users/emma3/Downloads/College.csv")
+```
+
+## b)
+
+```{r 8b}
+rownames(college) <- college[, 1]
+college <- college[, -1]
+# View(college) 
+```
+
+## c)
+
+```{r 8c}
+# ensuring the binary variable complies as a factor: 
+college$Private <- as.factor(college$Private)
+```
+
+### i)
+
+```{r 8c i}
+summary(college)
+```
+
+### ii)
+
+```{r 8c ii}
+college$Private <- as.factor(college$Private)
+
+pairs(college[,1:10])
+```
+
+### iii)
+
+```{r 8c iii}
+plot(college$Outstate ~ college$Private,
+     main = "Out-of-State Tuition by Private/Public Colleges",
+     xlab = "Private Institution (Yes/No)",
+     ylab = "Out-of-State Tuition")
+```
+
+### iv)
+
+```{r 8c iv}
+Elite <- rep("No", nrow(college))
+Elite[college$Top10perc > 50] <- "Yes"
+Elite <- as.factor(Elite)
+college <- data.frame(college, Elite)
+
+summary(college$Elite)
+
+plot(college$Outstate ~ college$Elite,
+     main = "Outstate Tuition by Private/Public Colleges",
+     xlab = "Elite University (Yes/No)",
+     ylab = "Out-of-State Tuition")
+```
+
+### v)
+
+```{r 8c v}
+par(mfrow = c(2, 2))
+hist(college$Outstate, breaks = 8,
+     main = "Histogram of Out-of-State Tuition",
+     xlab = "Out-of-State Tuition",
+     col = "orange")
+hist(college$Accept, breaks = 30,
+     main = "Histogram of Acceptance Rate",
+     xlab = "Acceptance Rate", 
+     col = "green")
+hist(college$PhD, breaks = 15,
+     main = "Histogram of Faculty with PhD",
+     xlab = "Faculty with PhD (%)",
+     col = "blue")
+hist(college$Grad.Rate, breaks = 10,
+     main = "Histogram of Graduation Rate",
+     xlab = "Graduation Rate (%)",
+     col = "red")
+```
+
+#### vi)
+
+```{r 8c vi}
+library(dplyr)
+
+# creating a function to display the percentages of various responses w/in data frame:
+percents <- function(data, colname){
+  percentage <- data %>%
+    count({{colname}}) %>%
+    mutate(percentage = n / sum(n) * 100)
+  return(percentage)
+}
+
+# Percentage of private colleges from all data:
+percents(college, Private)
+
+# Percentage of elite colleges from all data:
+percents(college, Elite)
+
+# Creating a variable for colleges who are BOTH private & elite:
+college$PrivElite <- case_when(college$Private == "Yes" & college$Elite == "Yes" ~ 1,
+                               T ~ 0) # 1 means "Yes", 0 means "No"
+
+percents(college, PrivElite) # only ~8.4% are both private & elite
+
+# figuring out if Out-of-State Tuition is higher among Private/Elite colleges:
+summary(college$Outstate)
+med.Outstate <- summary(college$Outstate)[3] # median tuition for all colleges in data set
+p75.Outstate <- summary(college$Outstate)[5] # 75th percentile for tuition
+p90.Outstate <- quantile(college$Outstate, 0.9) # 90th percentile for tuition
+
+# how many Priv/Elite colleges have a tuition over the ___ percentile?
+  # True = the tuition is over the ___ percentile
+# 50th:
+college %>%
+  filter(PrivElite == 1) %>%
+  count(Outstate > med.Outstate)
+
+# 75th:
+college %>%
+  filter(PrivElite == 1) %>%
+  count(Outstate > p75.Outstate)
+
+# 90th:
+college %>%
+  filter(PrivElite == 1) %>%
+  count(Outstate > p90.Outstate)
+
+# colleges with the highest Out-of-State Tuition
+college %>%
+  select(PrivElite, Outstate) %>%
+  arrange(desc(Outstate)) %>%
+  head(10) # intresting, only half of the 10 most expensive are Priv/Elite
+
+# Histogram of Out-of-State Tuition for Private & Elite Colleges
+PrivElite_subset <- college %>%
+  filter(PrivElite == 1)
+hist(PrivElite_subset$Outstate,
+     main = "Distribution of Private & Elite Colleges' Out-of-State Tuition",
+     xlab = "Out-of-State Tuition",
+     breaks = 15)
+
+```
