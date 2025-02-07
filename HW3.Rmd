@@ -1,0 +1,314 @@
+---
+title: "HW 3"
+subtitle: "STAT 5211"
+author: "Emma Johnson"
+date: "February 6, 2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(ISLR2)
+```
+
+# 9
+
+```{r 9 import, include = FALSE}
+auto <- ISLR2::Auto
+attach(Auto)
+```
+
+## a)
+
+```{r 9a}
+pairs(auto)
+```
+
+Right away, there appear to be some strong patterns observed among *displacement*, *horsepower*, *weight*, *year*, and potentially others when plotted against the response, *mpg.* Further, there appears to be some multicollinearity (i.e. strong correlation) between *displacement*, *horsepower*, and *weight*, perhaps accompanied by *acceleration.*
+
+## b)
+
+```{r 9b}
+cor <- round(cor(subset(Auto, select = -name)), 4)
+cor   # correlation matrix (rounded for simplicity)
+```
+
+There appears to be a strong positive correlation among *cylinders*, *horsepower*, and *weight*, all pairwise. Further, *acceleration* and *horsepower* display a fairly strong negative correlation, as well as the pair of *displacement* and *origin.*
+
+Another way to visualize there correlations:
+
+```{r 9b extra}
+# correlation plot
+library(ggcorrplot)     
+ggcorrplot(cor, lab = TRUE, 
+           type = "upper",
+           colors = c("gray40", "white", "gray40"))
+```
+
+## c)
+
+```{r 9c}
+mod1 <- lm(mpg ~ . -name, data = auto)
+summary(mod1)
+```
+
+### i)
+
+There is a relationship between the predictors and the response, reflected by the significant p-values associated with variables in the table summary of the model. More specifically, under the model including all potential explanatory variables for *mpg*, *displacement*, *weight*, *year*, and *origin* are statistically significant.
+
+Further, the value of $R^2$ suggests that approximately 82.15% of the variation observed in *mpg* is attributed to the explanatory variables within the model. A low $R^2$ would suggest that the explanatory variables do a poor job in fitting the data of the response variable.
+
+An F-test can be conducted to determine whether this **full** model, that is, one with explanatory variables, performs better than a **reduced** model with a simple (average) coefficient term describing *mpg.* The following are test results:
+
+Let $H_0:$ conclude the reduced model and $H_a:$ conclude the full model.
+
+```{r 9c i}
+full <- mod1
+reduced <- lm(mpg ~ 1, data = auto)
+anova(reduced, full)
+```
+
+Here, $F = 252.43$ and $p = 2.2 \times 10^{-16} << 0$. Therefore, Reject the null hypothesis and conclude the full model. In other words, the model with explanatory variables is better at predicting the *mpg.*
+
+### ii)
+
+Based on the summary, it appears that there are strong relationships between the response, *mpg*, and *displacement*, *weight*, *year*, and *origin.* The other potential explanatory variables, i.e. *cylinders*, *horsepower*, and *acceleration*, display higher p-values when all variables are included in the model, suggesting that some (if not, all) can be dropped after further testing. It is important to note that some of these variables displayed strong correlations with one another, so testing different models would provide a clearer picture of which variables to include/exclude.
+
+### iii)
+
+The coefficient of the *year* variable suggests that with every single year increase, the response increases by approximately 0.7508 *mpg*. Note that this coefficient could change when considering a model with less variables.
+
+## d)
+
+```{r 9d}
+par(mfrow = c(2, 2))
+plot(mod1)
+```
+
+The plot of the model residuals versus the fitted values displays concern for the constant variance of errors and the assumption of a linear model. Further, this suggests an abnormal distribution of errors. Therefore, a transformation to the response variable, *mpg*, should be tested. Points 323, 326, and 327 appear unusual, displaying high residual values. Overall, it is not the most problematic looking plot, but it likely could use transformations to the original model to minimize these problems with the model assumptions.
+
+The QQ-Plot has some data tailing off from the normal QQ-Line in the top right. This could suggest skewness in the data and the potential for outliers. Once again, points 323, 326, and 327 appear unusual.
+
+The Scale-Location plot displays a mild violation of the constant variance of errors assumption, due to the slightly larger concentration of points on the right with higher residuals than the rest. It appears to slightly fan out, as well, similar to the plot of residuals vs. fitted. Points 323, 326, and 327 exhibit, again, unusual patterns of residuals. Perhaps they are outliers or influential points.
+
+The last plot of Residuals vs. Leverage highlights data point 14 as causing concern for heightened leverage. This means that data point could heavily influence the model. Points 327 and 349 also exhibit unusual patterns, as highlighted.
+
+Here are some further testing measures to point out potential outliers and leveraged data points:
+
+```{r 9d outliers}
+n <- nrow(auto)      # sample size
+p <- ncol(auto) - 1  # number of predictor variables in model 1
+
+# Finding outliers:
+stud.res.test <- function(model, alpha) {
+  unique(which(
+  abs(rstudent(model)) >= qt(1-alpha/2, n - p - 2)
+))
+}
+stud.res.test(mod1, 0.05)  # all flagged points at alpha level = 0.05
+
+# Bonferroni method:
+stud.res.test(mod1, 0.05/(2*n))  # no flagged outliers using Bonferroni adjustment
+```
+Under a less conservative significance level, there are 18 points flagged as potential outliers, whereas using the more conservative Bonferroni adjustment, there are none. 
+
+```{r 9d influential}
+# Finding leverage / influential points:
+leverage <- function(model){
+  unique(which(
+    hatvalues(model) > 2*(p+1)/n
+  ))
+}
+lev.vals <- leverage(mod1)
+lev.vals   # flagged leverage values
+
+# Plotting the results:
+color.vec <- rep("black", length(hatvalues(mod1)))
+color.vec[lev.vals] <- "red"
+
+plot(hatvalues(mod1), col = color.vec,
+     main = "Leverages Values in Auto Dataset",
+     ylab = "Hat-values")
+
+```
+Under the criterion using hat-values to find leveraged values and influential points, 14 values were flagged with abnormally high leverage. 
+
+## e)
+
+```{r 9e}
+mod2 <- lm(mpg ~ displacement + weight + year + origin + horsepower 
+           + horsepower:displacement,
+           data = auto)
+summary(mod2)
+```
+
+Since *displacement* and *horsepower* displayed the strongest correlation between all of the explanatory variables, I chose to use their interaction as a term in this second model. By looking at the summary, all terms are significant (except perhaps the intercept term, depending on the desired significance level). This new model has a higher $R^2$ value of 0.8602 and it suggests a place for the *horsepower* variable, which displayed a high p-value in the first model.
+
+## f)
+
+```{r 9f}
+boxcox(mod1)
+auto$new.mpg <- sqrt(auto$mpg)
+
+mod3 <- lm(new.mpg ~ . -mpg-name, data = auto)
+summary(mod3)
+
+mod4 <- lm(new.mpg ~ cylinders + log(displacement) + log(horsepower) + 
+             log(weight) + acceleration + year + origin, data = auto)
+summary(mod4)
+```
+
+By first taking a look at transforming the *mpg* variable through a boxcox transformation, we see that taking the square root of *mpg* could improve them model. In model 3, this transformation proves to improve the $R^2$ value by increasing it to 0.8561, as opposed to the $R^2$ in model 1 of 0.8215. Taking it a step further by observing patterns in *displacement*, *horsepower*, and *weight*, model 3 contains transforms these variables by taking the logarithm of each and modeling them against the square root of *mpg*. Again, the $R^2$ increases to 0.875, but we're starting to lose interpretation of the model's variables.
+
+Note that significance values changed for the variables under these adjustments, with some losing and some gaining significance depending on the model. Overall, it appears that some transformations could benefit the model fit, but I would advise against getting too crazy with it.
+
+# 10
+
+```{r 10, include=FALSE}
+carseats <- ISLR2::Carseats
+attach(carseats)
+colnames(carseats)
+```
+
+## a)
+
+```{r 10a}
+mod1 <- lm(Sales ~ Price + Urban + US, data = carseats)
+summary(mod1)
+```
+
+## b)
+
+```{r 10b}
+# Checking for qualitative variables 
+is.factor(carseats$Urban) # T
+is.factor(carseats$US)    # T
+is.factor(carseats$Price) # F
+```
+
+The intercept coefficient of the model (i.e. \~13.04) serves no useful interpretation because it is associated with \$0 for *Price*, which is unreasonable, in addition to the specific circumstance of a rural location outside of the US.
+
+The model coefficient attached to the variable *Price* suggests a strong linear relationship such that as price increases by \$1, the *Sales* for car seats decrease by approximately 54 units, on average with all other variables held constant.
+
+The model suggests a weak relationship between the urban/rural location of the store (i.e. *Urban*) and *Sales*, as reflected by the p-value close to 1. On average, urban stores sell around 22 units less than rural stores, holding all other variables constant.
+
+There appears to be a strong relationship between the national location of the store (i.e. *US*) and Sales, associated with a p-value near zero. That is, stores located within the US sell approximately 1201 units more than elsewhere, all other variables held constant.
+
+## c)
+
+$\hat Y = 13.04345 - 0.0545X_1 - 0.0219X_2 + 1.2006X_3$ where $Y$ is the unit sales (in thousands) at each location (i.e. *Sales*), $X_1$ is the price the company charges for car seats (i.e. *Price*), $X_2$ indicates whether the store is an urban (Yes \~ 1) or rural (No \~ 0) location (i.e. *Urban*), and $X_3$ indicates whether the store is in the US (Yes \~ 1) or not (No \~ 0) (i.e. *US*).
+
+Note that the model can be split up into 4 separate models, depending on the context of the qualitative variables. For example, a model looking at rural stores outside of the US would be simplified to $\hat Y = 13.04345 + 1.2006X_3$, suggesting both $X_1$ and $X_2$ are coded as zeros.
+
+## d)
+
+According to the model summary, you can reject $H_0: {\beta}_j = 0$ for the *Price* and *US* variables, since they display p-values close to zero, whereas the *Urban* variable displays a high p-value. Therefore, accept the null hypothesis when testing the coefficient associated with *Urban* only.
+
+## e)
+
+```{r 10e}
+mod2 <- lm(Sales ~ Price + US, data = carseats)
+summary(mod2)
+```
+
+## f)
+
+When comparing models 1 and 2, there is no noticeable change to the value of $R^2$, which is still approximately 0.2393. However, this second model displays significant contributions by all of its coefficients, unlike model 1. Also, the estimated coefficients changed marginally. Therefore, removing the *Urban* variable preserved the coefficient of determination and did little to affect the remaining variables.
+
+## g)
+
+```{r 10g}
+round(confint(mod2), 4) # default is 95%
+```
+
+An example of an interpretation is that with 95% confidence, the true decrease in unit *Sales* as price goes up by \$1 is between approximately 44 and 65 less units sold.
+
+## h)
+
+```{r 10h}
+par(mfrow = c(2, 2))
+plot(mod2)
+```
+
+According to the diagnostic plots, there are quite a few points that suggest evidence for outliers, such as at points 51, 69, and 377 on the first 3 plots, with the additions of points 26, 50, and 368 on the plot of Residuals vs. Leverage. Further testing should be conducted to know for sure which, if any, points are outliers or high leverage observations.
+
+Once again, we can test for potential outliers and leveraged / influential points (proceeding with model 2):
+
+```{r 10h outliers}
+n <- nrow(carseats)  # sample size
+p <- 2               # number of predictor variables in model 2
+
+# Finding outliers:
+stud.res.test(mod2, 0.05)  # all flagged points at alpha level = 0.05
+
+# Bonferroni method:
+stud.res.test(mod2, 0.05/(2*n))  # no flagged outliers using Bonferroni adjustment
+```
+
+There are 24 flagged outlier points using a less conservative significance level, yet none with the Bonferroni adjustment.
+
+
+```{r 10h influential}
+# Finding leverage / influential points:
+lev.vals <- leverage(mod2)
+lev.vals   # flagged leverage values
+
+# Plotting the results:
+color.vec <- rep("black", length(hatvalues(mod2)))
+color.vec[lev.vals] <- "red"
+
+plot(hatvalues(mod2), col = color.vec,
+     main = "Leverages Values in Car Seats Dataset",
+     ylab = "Hat-values")
+
+```
+
+There are 20 flagged points with unusual leverage under the hat-values procedure, as highlighted in the plot.
+
+# Step-wise Selection (not in book)
+
+## 1
+
+```{r 1}
+mod1 <- lm(Sales ~ 1, data = carseats)  # no predictor model
+mod2 <- lm(Sales ~ . , data = carseats) # model with all predictors
+stepAIC(mod2, direction = "backward", 
+        scope = list(lower=mod1, upper=mod2)) # AIC backwards selection
+```
+
+The model to predict *Sales* suggested by the AIC criterion using **backwards** selection consists of *CompPrice*, *Income*, *Advertising*, *Price*, *ShelveLoc*, and *Age*. The associated AIC value is 23.32.
+
+## 2
+
+```{r 2}
+stepAIC(mod1, direction = "forward", 
+        scope = list(lower=mod1, upper=mod2)) # AIC forwards selection
+```
+
+The suggested model using **forward** selection is the same as the one found using **backward** selection. The only difference is the order in which the variables are listed within the model, although their associated estimated coefficients are the same as in part 1. The AIC value is 23.32, once again.
+
+The model is estimated as follows:
+
+$Sales = 5.48 + 4.84(ShelveLocGood) + 1.95(ShelveLocMedium) - 0.10(Price) + 0.09(CompPrice) + 0.12(Advertising) - 0.05(Age) + 0.02(Income)$
+
+## 3
+
+```{r 3}
+n <- nrow(carseats)
+stepAIC(mod2, direction = "backward", 
+        scope = list(lower=mod1, upper=mod2),
+        k = log(n)) # BIC backwards selection
+```
+
+Using the BIC criterion and *backward* selection, the model for *Sales* is the same suggestion as found with the AIC criterion. Further, the variables are ordered in the same manner that they were for the *backwards* selection using the AIC criterion, found in part 1. The BIC value for the model is 55.25, which is different than the AIC value, due to the difference in criterion method.
+
+## 4
+
+```{r 4}
+stepAIC(mod1, direction = "forward", 
+        scope = list(lower=mod1, upper=mod2),
+        k = log(n)) # BIC forwards selection
+```
+
+Similar to part 3, the suggested model under the BIC criterion using *forward* selection has the same 6 variables in all of the previous answers. This time, the order of the variables listed follows the same pattern as the *forward* selection of the AIC criterion. Here, the reported BIC value is the same as in part 3, which is 55.25.
