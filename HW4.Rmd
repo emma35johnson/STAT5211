@@ -1,0 +1,259 @@
+---
+title: "HW 4"
+author: "Emma Johnson"
+date: "February 19, 2025"
+output:
+  pdf_document: default
+  html_document: default
+subtitle: STAT 5211
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR2)
+library(tidyverse)
+library(MASS)
+```
+
+# 6
+
+## a)
+
+Using the **logistic function**,
+
+```{r 6a}
+# p(x) =
+exp(-6 + 0.05*40 + 1*3.5) / (1 + exp(-6 + 0.05*40 + 1*3.5))
+```
+
+The probability of a student who studies for 40 hours and has an undergrad GPA of 3.5 getting an A in the class is approximately 0.3775 under the logistic model.
+
+## b)
+
+Solving the **logit** function for $X_1$,
+
+```{r 6b}
+# X1 =
+(log(0.5 / (1 - 0.5)) + 6 - 1*3.5) / 0.05
+```
+
+The student in part (a) would need to study for 50 hours to have a 50% chance of getting an A in the class.
+
+# 9
+
+## a)
+
+Consider the odds $\frac{p(x)}{1 - p(x)} = 0.37$. Rearrange to solve for $p(x)$, that is,
+
+```{r 9a}
+# p(x) =
+.37 / 1.37
+```
+
+Approximately 27.01% of people with an odds of 0.37 of defaulting on their credit card payment will in fact default.
+
+## b)
+
+Plugging in $p(x) = 0.16$ into the odds,
+
+```{r 9b}
+# odds = 
+0.16 / (1 - 0.16)
+```
+
+The odds that an individual with a 16% chance of defaulting on her credit card payment *actually* defaulting are approximately 0.19.
+
+# 13
+
+```{r 13}
+weekly <- ISLR2::Weekly
+```
+
+## a)
+
+```{r 13a}
+summary(weekly)
+
+pairs(weekly)
+
+cor(weekly[-9])
+
+attach(weekly)
+plot(Volume)
+```
+
+When observing the **pairs** plot, there appears to be a logistic relationship between *Direction* and *Today*.
+
+There appears to be little correlation between any variables, aside from a strong positive correlation between *Year* and *Volume*. In line with the **Smarket** data, there is little correlation between the lag variables and today's returns. Further, *Volume* increases over time (indexed chronologically).
+
+## b)
+
+```{r 13b}
+attach(weekly)
+
+mod1 <- glm(
+  Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,
+  family = binomial
+  )
+summary(mod1)
+```
+
+The only statistically significant variable within this model is *Lag2* at the 0.05 significance level. The *Intercept* is the only other term yielding significance within the summary of the model, at a 0.01 significance level.
+
+## c) 
+
+```{r 13c}
+glm.probs <- predict(mod1, type = "response")
+glm.pred <- rep("Down", 1089)
+glm.pred[glm.probs > .5] = "Up"
+
+# Confusion Matrix:
+table(glm.pred, Direction)
+
+# Correctly classified:
+mean(glm.pred == Direction)
+```
+
+Under the confusion matrix, which helps identify the class of the observations in accordance to the categorical response, *Direction*, it appears that the first model only classifies the correct *Direction* as Up or Down about 56.11% of the time. This means nearly half of the observations are incorrectly categorized, making the model slightly better than a 50/50 guessing game.
+
+Since the model was **trained** and **tested** with the same set of observations, the **training error rate** is about 43.89%, which typically underestimates the true **test error rate**. To assess the accuracy of the model, a smaller portion of the data should be tested and the rest should be **held out** to examine a more realistic error rate once predictions are carried out. 
+
+## d) 
+
+```{r 13d}
+train <- (Year < 2009) # training data from 1990 - 2008
+weekly.2009 <- weekly[!train, ] # held out data from 2009 - 2010
+Direction.2009 <- Direction[!train]
+
+mod2 <- glm(
+    Direction ~ Lag2,
+    data = weekly, 
+    family = binomial, 
+    subset = train
+  )
+glm.probs <- predict(mod2, weekly.2009,
+    type = "response")
+
+glm.pred <- rep("Down", 104)
+glm.pred[glm.probs > .5] <- "Up"
+table(glm.pred, Direction.2009)
+
+mean(glm.pred == Direction.2009)
+```
+
+This time, using a training model from the set of observations from 1990 to 2008 and performing predictions on a held-out data set from 2009 to 2010, performs much better. This new model, using only the significant *Lag2* predictor variable, classifies the correct *Direction* around 62.5% of the time, which is surely a step up from 50/50 guessing. Further, the **training error rate** is 37.5%, which has dropped from the first model attempt of 43.89%.
+
+# 14
+
+## a)
+
+```{r 14a}
+auto <- ISLR2::Auto
+auto$mpg01 <- ifelse(auto$mpg > median(auto$mpg), 1, 0)
+```
+
+## b)
+
+```{r 14b pairs}
+pairs(auto)
+```
+
+Aside from *mpg*, of course, the variables that may perform well in predicting *mpg01* are *horsepower*, *weight*, and *acceleration*.
+
+```{r 14b scatterplots}
+attach(auto)
+par(mfrow = c(2, 2))
+plot(horsepower, mpg01)
+plot(weight, mpg01)
+plot(acceleration, mpg01)
+```
+
+```{r boxplots}
+par(mfrow = c(1, 3))
+boxplot(horsepower ~ mpg01, 
+        horizontal = T,
+        col = c("lightblue", "lightgreen"))
+boxplot(weight ~ mpg01,
+        horizontal = T, 
+        col = c("lightblue", "lightgreen"))
+boxplot(acceleration ~ mpg01,
+        horizontal = T, 
+        col = c("lightblue", "lightgreen"))
+```
+
+As seen through the boxplots, it appears that the variables horsepower, weight, and acceleration each generally correspond to distinct values for *mpg01*. Note that if *mpg01* was plotted against a weakly correlated variable, such as *cylinders*, the error bars would likely overlap more, especially within the IQR.
+
+
+```{r mer, include = FALSE}
+library(patchwork)
+box <- function(var) {
+ggplot(auto, aes(x = {{var}}, y = as.factor(mpg01),
+                 fill = as.factor(mpg01))) + 
+  ylab("mpg01") +
+  xlab(deparse(substitute(var))) +
+  geom_boxplot() + 
+  theme_classic() +
+  theme(legend.position = "none")
+}
+
+box(horsepower) +  box(weight) + box(acceleration)
+```
+
+
+## c)
+
+```{r 14c}
+set.seed(5)  # reproducibility
+
+# Sample to split 80% train & 20% test 
+train_ind <- sample(1:nrow(auto), size = 0.8 * nrow(Auto))
+train <- rep(FALSE, nrow(auto))
+train[train_ind] <- TRUE  # training set: 313 observations
+
+test <- auto[!train, ]  # held out data (testing): 79 observations
+mpg01.test <- mpg01[!train]  # testing mpg01 values
+```
+
+## f)
+
+```{r 14f}
+# Selecting variables
+auto <- auto[, !names(auto) %in% c("mpg", "name")]
+mod1 <- glm(
+  mpg01 ~ 1,
+  data = auto, 
+  family = binomial, 
+  subset = train
+  )
+mod2 <- glm(
+  mpg01 ~ .,
+  data = auto, 
+  family = binomial, 
+  subset = train
+  )
+stepAIC(mod1, direction = "both", 
+        scope = list(lower=mod1, upper=mod2),
+        trace = F) # AIC selection
+
+# Final training model
+mod.train <- glm(
+  mpg01 ~ displacement + weight + year + horsepower,
+  data = auto, 
+  family = binomial, 
+  subset = train
+  )
+summary(mod.train)
+
+# Predicting test set observations for mpg01
+glm.probs <- predict(mod.train, test,
+    type = "response")
+
+glm.pred <- rep(0, nrow(test))
+glm.pred[glm.probs > .5] <- 1
+table(glm.pred, mpg01.test) # confusion matrix
+
+mean(glm.pred == mpg01.test) # training accuracy rate
+mean(glm.pred != mpg01.test) # training error rate
+```
+
+The **test error** of the model predicting *mpg01* using *displacement*, *weight*, *year*, and *origin* is approximately 8.86%, which seems pretty outstanding. 
