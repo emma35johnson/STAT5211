@@ -1,0 +1,402 @@
+---
+title: "Classification with Several Cases"
+author: "Emma Johnson"
+date: "March 17, 2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR2)
+library(tidyverse)
+library(MASS)
+library(class)
+library(e1071)
+library(paletteer)
+library(kableExtra)
+library(knitr)
+library(patchwork)
+```
+
+# Problem 1
+
+## 1.
+
+```{r 1.1, echo = FALSE}
+data1 <- read.csv("~/Spring 2025/Statistical Learning/Data Files/K3n1000.csv")
+data1$Y <- as.factor(data1$Y)
+
+ggplot(data1, aes(X1, X2, color = Y)) +
+  geom_point(alpha = 0.5) + 
+  theme_classic() +
+  scale_color_paletteer_d("yarrr::google") +
+  labs(title = "Scatterplot Colored by Y") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+```
+
+## 2.
+
+```{r 1.2}
+set.seed(5)  # reproducibility
+
+# Split train/test sets 50/50:
+train_ind <- sample(1:nrow(data1), size = 0.5 * nrow(data1))
+train <- rep(FALSE, nrow(data1))
+train[train_ind] <- TRUE # training set: 500 obs
+
+test <- data1[!train, ]  # held out set (testing): 500 obs
+test.class <- data1$Y[!train]  # true Y values for testing set
+```
+
+## 3.
+
+```{r 1.3}
+lda.fit <- lda(
+  Y ~ X1 + X2, 
+  data = data1,
+  subset = train
+  )
+lda.fit
+
+# Predictions using LDA model:
+lda.class <- predict(lda.fit, test)$class
+
+# Confusion matrix:
+table(lda.class, test.class)
+
+# Rate of correct classifications:
+mean(lda.class == test.class)
+
+# Test error:
+mean(lda.class != test.class)
+```
+
+```{r 1.3 scat, echo = FALSE}
+# Scatterplot:
+test.plot <- ggplot(test, aes(X1, X2, color = Y)) +
+  geom_point(alpha = 0.5) + 
+  theme_classic() +
+  scale_color_paletteer_d("yarrr::google") +
+  labs(title = "True Classes of Testing Set") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+# Scatterplot of misclassified points:
+test$LDA <- ifelse(lda.class == test.class, "Correct", "Misclassified")
+lda.plot <- ggplot(test, aes(X1, X2, color = LDA)) +
+  geom_point(alpha = 0.4) + 
+  theme_classic() +
+  scale_color_manual(values = c("Correct" = "black", "Misclassified" = "red")) +
+  labs(title = "LDA: Misclassified Points") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+test.plot + lda.plot
+```
+
+## 4.
+
+```{r 1.4}
+qda.fit <- qda(
+  Y ~ X1 + X2, 
+  data = data1,
+  subset = train
+  )
+qda.fit
+
+# Predictions using QDA model:
+qda.class <- predict(qda.fit, test)$class
+
+# Confusion matrix:
+table(qda.class, test.class)
+
+# Rate of correct classifications:
+mean(qda.class == test.class)
+
+# Test error:
+mean(qda.class != test.class)
+```
+
+```{r 1.4 scat, echo = FALSE}
+# Scatterplot of misclassified points:
+test$QDA <- ifelse(qda.class == test.class, "Correct", "Misclassified")
+qda.plot <- ggplot(test, aes(X1, X2, color = QDA)) +
+  geom_point(alpha = 0.4) + 
+  theme_classic() +
+  scale_color_manual(values = c("Correct" = "black", "Misclassified" = "red")) +
+  labs(title = "QDA: Misclassified Points") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+test.plot + qda.plot
+```
+
+## 5.
+
+```{r 1.5}
+# Standardizing X1 & X2:
+standardized.X  <- scale(data1[,c(1:2)])
+
+# Updating training & testing sets:
+train.X <- standardized.X[train, ]
+test.X <- standardized.X[!train, ]
+train.class <- data1$Y[train]
+test.class <- data1$Y[!train]
+
+# Predictions using KNN with k = 10:
+set.seed(5)
+knn.pred <- knn(train.X, test.X, train.class, k = 10)
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Rate of correct classifications:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+```{r 1.5 scat, echo = FALSE}
+#Scatterplot:
+test.X <- as.data.frame(test.X)
+test.X$test.class <- test.class
+test.knn.plot <- ggplot(test.X, aes(X1, X2, color = test.class)) +
+  geom_point(alpha = 0.5) + 
+  theme_classic() +
+  scale_color_paletteer_d("yarrr::google") +
+  labs(title = "True Classes of Testing Set") +
+  xlab("Standardized X1") +
+  ylab("Standardized X2") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+# Scatterplot of misclassified points:
+test.X$KNN <- ifelse(knn.pred == test.class, "Correct", "Misclassified")
+knn.plot <- ggplot(test.X, aes(X1, X2, color = KNN)) +
+  geom_point(alpha = 0.4) + 
+  theme_classic() +
+  scale_color_manual(values = c("Correct" = "black", "Misclassified" = "red")) +
+  labs(title = "KNN: Misclassified Points") +
+  xlab("Standardized X1") +
+  ylab("Standardized X2") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+test.knn.plot + knn.plot
+```
+
+## 6. 
+
+Comparing the three testing procedures, the results are as follows:
+
+```{r 1.6, echo = FALSE}
+# Test Errors for Problem 1:
+error <- data.frame(
+  Method = c("LDA", "QDA", "KNN"),
+  Test_Error = c("16%", "8.8%", "9.6%")
+)
+
+# Table:
+error %>%
+  kable(caption = "Test Error Comparisons") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+```
+
+For this data, QDA performed better than LDA and KNN.
+
+# Problem 2
+
+## 1.
+
+```{r 2.1, echo = FALSE}
+data2 <- read.csv("~/Spring 2025/Statistical Learning/Data Files/K4n1000.csv")
+data2$Y <- as.factor(data2$Y)
+
+ggplot(data2, aes(X1, X2, color = Y)) +
+  geom_point(alpha = 0.5) + 
+  theme_classic() +
+  scale_color_paletteer_d("yarrr::google") +
+  labs(title = "Scatterplot Colored by Y") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+```
+
+## 2.
+
+```{r 2.2}
+set.seed(10)  # reproducibility
+
+# Split train/test sets 50/50:
+train_ind <- sample(1:nrow(data2), size = 0.5 * nrow(data2))
+train <- rep(FALSE, nrow(data2))
+train[train_ind] <- TRUE # training set: 500 obs
+
+test <- data2[!train, ]  # held out set (testing): 500 obs
+test.class <- data2$Y[!train]  # true Y values for testing set
+```
+
+## 3.
+
+```{r 2.3}
+qda.fit <- qda(
+  Y ~ X1 + X2, 
+  data = data2,
+  subset = train
+  )
+qda.fit
+
+# Predictions using QDA model:
+qda.class <- predict(qda.fit, test)$class
+
+# Confusion matrix:
+table(qda.class, test.class)
+
+# Rate of correct classifications:
+mean(qda.class == test.class)
+
+# Test error:
+mean(qda.class != test.class)
+```
+
+```{r 2.3 scat, echo = FALSE}
+# Scatterplot:
+test.plot <- ggplot(test, aes(X1, X2, color = Y)) +
+  geom_point(alpha = 0.5) + 
+  theme_classic() +
+  scale_color_paletteer_d("yarrr::google") +
+  labs(title = "True Classes of Testing Set") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+# Scatterplot of misclassified points:
+test$QDA <- ifelse(qda.class == test.class, "Correct", "Misclassified")
+qda.plot <- ggplot(test, aes(X1, X2, color = QDA)) +
+  geom_point(alpha = 0.4) + 
+  theme_classic() +
+  scale_color_manual(values = c("Correct" = "black", "Misclassified" = "red")) +
+  labs(title = "QDA: Misclassified Points") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+test.plot + qda.plot
+```
+
+## 4.
+
+```{r 2.4}
+# Naive Bayes Model:
+nb.fit <- naiveBayes(
+  Y ~ X1 + X2,
+  data = data2,
+  subset = train
+  )
+nb.fit
+
+# Predictions using Naive Bayes:
+nb.class <- predict(nb.fit, test)
+
+# Confusion matrix:
+table(nb.class, test.class)
+
+# Rate of correct classifications:
+mean(nb.class == test.class)
+
+# Test error:
+mean(nb.class != test.class)
+```
+
+```{r 2.4 scat, echo = FALSE}
+# Scatterplot of misclassified points:
+test$NaiveBayes <- ifelse(nb.class == test.class, "Correct", "Misclassified")
+nb.plot <- ggplot(test, aes(X1, X2, color = NaiveBayes)) +
+  geom_point(alpha = 0.4) + 
+  theme_classic() +
+  scale_color_manual(values = c("Correct" = "black", "Misclassified" = "red")) +
+  labs(title = "Naive Bayes: Misclassified Points") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+test.plot + nb.plot
+```
+
+## 5.
+
+```{r 2.5}
+# Standardizing X1 & X2:
+standardized.X  <- scale(data2[,c(1:2)])
+
+# Updating training & testing sets:
+train.X <- standardized.X[train, ]
+test.X <- standardized.X[!train, ]
+train.class <- data2$Y[train]
+test.class <- data2$Y[!train]
+```
+
+```{r 2.5 best k fxn}
+# Function to find the best k for KNN:
+best.k <- function(train.X, test.X, train.class, test.class, k.vals = seq(1, 100, by = 1)) {
+  accuracy <- sapply(k.vals, function(k) {
+    set.seed(10)
+    mean(knn(train.X, test.X, train.class, k = k) == test.class)
+  })
+  best.k <- k.vals[which.max(accuracy)]
+  return(best.k)
+}
+
+# Results:
+best.k(train.X, test.X, train.class, test.class)
+```
+
+```{r 2.5 k equals 13}
+# Predictions using KNN with k = 13:
+set.seed(10)
+knn.pred <- knn(train.X, test.X, train.class, k = 13)
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Rate of correct classifications:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+```{r 2.5 scatterplot, echo = FALSE}
+#Scatterplot:
+test.X <- as.data.frame(test.X)
+test.X$test.class <- test.class
+test.knn.plot <- ggplot(test.X, aes(X1, X2, color = test.class)) +
+  geom_point(alpha = 0.5) + 
+  theme_classic() +
+  scale_color_paletteer_d("yarrr::google") +
+  labs(title = "True Classes of Testing Set") +
+  xlab("Standardized X1") +
+  ylab("Standardized X2") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+# Scatterplot of misclassified points:
+test.X$KNN <- ifelse(knn.pred == test.class, "Correct", "Misclassified")
+knn.plot <- ggplot(test.X, aes(X1, X2, color = KNN)) +
+  geom_point(alpha = 0.4) + 
+  theme_classic() +
+  scale_color_manual(values = c("Correct" = "black", "Misclassified" = "red")) +
+  labs(title = "KNN: Misclassified Points") +
+  xlab("Standardized X1") +
+  ylab("Standardized X2") +
+  guides(color = guide_legend(override.aes = list(size = 5)))
+
+test.knn.plot + knn.plot
+```
+
+## 6. 
+
+Comparing the three testing procedures, the results are as follows:
+
+```{r 2.6, echo = FALSE}
+# Test Errors for Problem 2:
+error <- data.frame(
+  Method = c("QDA", "Naive Bayes", "KNN"),
+  Test_Error = c("26.6%", "50.6%", "15.4%")
+)
+
+# Table:
+error %>%
+  kable(caption = "Test Error Comparisons") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+```
+
+For this data, KNN performed better than QDA and Naive Bayes.
