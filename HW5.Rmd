@@ -1,0 +1,347 @@
+---
+title: "HW 5"
+author: "Emma Johnson"
+date: "February 28, 2025"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ISLR2)
+library(tidyverse)
+library(MASS)
+```
+
+# 13
+
+```{r 13}
+weekly <- ISLR2::Weekly
+```
+
+## e)
+
+**LDA**
+
+```{r 13e}
+attach(weekly)
+train <- (Year < 2009) # training data from 1990 - 2008
+weekly.2009 <- weekly[!train, ] # held out data from 2009 - 2010
+Direction.2009 <- Direction[!train]
+
+# LDA Model:
+lda.fit <- lda(
+  Direction ~ Lag2, 
+  data = weekly,
+  subset = train
+  )
+lda.fit
+
+# Predictions using LDA model:
+lda.class <- predict(lda.fit, weekly.2009)$class
+
+# Confusion matrix:
+table(lda.class, Direction.2009)
+
+# Fraction of correct predictions:
+mean(lda.class == Direction.2009) # same as logistic
+
+# Test error:
+mean(lda.class != Direction.2009)
+```
+
+The LDA model of the *Weekly* data set predicts the correct *Direction* based on *Lag2* (for data in 2009 and 2010) 62.5% of the time. This is equivalent to the results from the logistic regression model. 
+
+## f)
+
+**QDA**
+
+```{r 13f}
+# QDA Model:
+qda.fit <- qda(
+  Direction ~ Lag2, 
+  data = weekly,
+  subset = train
+  )
+qda.fit
+
+# Predictions using QDA model:
+qda.class <- predict(qda.fit, weekly.2009)$class
+
+# Confusion matrix:
+table(qda.class, Direction.2009)
+
+# Fraction of correct predictions:
+mean(qda.class == Direction.2009)
+
+# Test error:
+mean(qda.class != Direction.2009)
+```
+
+Under the QDA model, *Direction* is predicted correctly approximately 58.65% of the time.
+
+## g)
+
+**KNN** with k = 1
+
+```{r 13g}
+library(class)
+set.seed(5)
+
+# Updating training & testing sets:
+train.X <- matrix(Lag2[train], ncol = 1)
+test.X <- matrix(Lag2[!train], ncol = 1)
+train.class <- Direction[train]
+test.class <- Direction[!train]
+
+# Predictions using KNN:
+knn.pred <- knn(train.X, test.X, train.class, k = 1)
+mean(knn.pred != "Up") # 50% of observations classified "Up" and 50% "Down"
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Fraction of correct predictions:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+Under KNN with $k=1$, *Direction* is predicted correctly 50% of the time, not any better than simply guessing.
+
+## h)
+
+**Naive Bayes**
+
+```{r 13h}
+library(e1071)
+
+# Naive Bayes Model:
+nb.fit <- naiveBayes(
+  Direction ~ Lag2,
+  data = weekly,
+  subset = train
+  )
+nb.fit
+
+# Predictions using Naive Bayes:
+nb.class <- predict(nb.fit, weekly.2009)
+
+# Confusion matrix:
+table(nb.class, Direction.2009)
+
+# Fraction of correct predictions:
+mean(nb.class == Direction.2009)
+
+# Test error:
+mean(nb.class != Direction.2009)
+```
+
+Under naive Bayes, *Direction* is predicted correctly approximately 58.65% of the time, similar to the QDA model.
+
+## i)
+
+The method that provides the best results on the *weekly* data is either the logistic regression model or the LDA model, since their error rate and accuracy rates are equivalent.
+
+# 14
+
+```{r 14}
+auto <- ISLR2::Auto
+auto$mpg01 <- ifelse(auto$mpg > median(auto$mpg), 1, 0)
+```
+
+## c)
+
+```{r 14c}
+attach(auto)
+set.seed(5)  # reproducibility
+
+# Sample to split 80% train & 20% test 
+train_ind <- sample(1:nrow(auto), size = 0.8 * nrow(auto))
+train <- rep(FALSE, nrow(auto))
+train[train_ind] <- TRUE  # training set: 313 observations
+
+test <- auto[!train, ]  # held out data (testing): 79 observations
+mpg01.test <- mpg01[!train]  # test set mpg01 (true) values 
+```
+
+## e)
+
+**LDA**
+
+```{r 14e}
+# LDA Model:
+lda.fit <- lda(
+  mpg01 ~ displacement + weight + year + horsepower,
+  data = auto,
+  subset = train
+  )
+lda.fit
+
+# Predictions using LDA model:
+lda.class <- predict(lda.fit, test)$class
+
+# Confusion matrix:
+table(lda.class, mpg01.test)
+
+# Fraction of correct predictions:
+mean(lda.class == mpg01.test) # training accuracy rate
+
+# Test error:
+mean(lda.class != mpg01.test)
+```
+
+The LDA model of the *Auto* data set, predicts *mpg01* (i.e. above or below the median mpg) based on *displacement*, *weight*, *year*, and *horsepower*, with a **test error** of approximately 7.59%. This is better than the results from the logistic regression model. 
+
+## f)
+
+**QDA**
+
+```{r 14f}
+# QDA Model:
+qda.fit <- qda(
+  mpg01 ~ displacement + weight + year + horsepower,
+  data = auto,
+  subset = train
+  )
+qda.fit
+
+# Predictions using QDA model:
+qda.class <- predict(qda.fit, test)$class
+
+# Confusion matrix:
+table(qda.class, mpg01.test)
+
+# Fraction of correct predictions:
+mean(qda.class == mpg01.test) # training accuracy rate
+
+# Test error:
+mean(qda.class != mpg01.test)
+```
+
+Under the QDA model, the **test error** is approximately 7.59%, similar to the results of the LDA model.
+
+## g)
+
+**Naive Bayes**
+
+```{r 14g}
+# Naive Bayes Model:
+nb.fit <- naiveBayes(
+  mpg01 ~ displacement + weight + year + horsepower,
+  data = auto,
+  subset = train
+  )
+nb.fit
+
+# Predictions using Naive Bayes:
+nb.class <- predict(nb.fit, test)
+
+# Confusion matrix:
+table(nb.class, mpg01.test)
+
+# Fraction of correct predictions:
+mean(nb.class == mpg01.test)
+
+# Test error:
+mean(nb.class != mpg01.test)
+```
+
+Under naive Bayes, the **test error** is approximately 8.86%.
+
+## h)
+
+**KNN**
+
+```{r 14h}
+# Standardizing the quantitative variables:
+standardized.X  <- scale(auto[,c(3:5, 7)]) # displacement, horsepower, weight, year
+apply(standardized.X, 2, mean) # means approx 0
+apply(standardized.X, 2, sd) # st. devs = 1
+
+# Updating training & testing sets:
+train.X <- standardized.X[train, ]
+test.X <- standardized.X[!train, ]
+train.class <- mpg01[train]
+test.class <- mpg01[!train]
+```
+
+Testing **k = 1**:
+
+```{r 14h k of 1}
+set.seed(5)
+
+# Predictions using KNN with k = 1:
+knn.pred <- knn(train.X, test.X, train.class, k = 1)
+mean(knn.pred == 1) # 60.76% observations classified as a 1 (i.e. above median mpg)
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Fraction of correct predictions:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+Testing **k = 2**:
+
+```{r 14h k of 2}
+set.seed(5)
+
+# Predictions using KNN with k = 2:
+knn.pred <- knn(train.X, test.X, train.class, k = 2)
+mean(knn.pred == 1) # 54.43% observations classified as a 1 (i.e. above median mpg)
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Fraction of correct predictions:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+Testing **k = 3**:
+
+```{r 14h k of 3}
+set.seed(5)
+
+# Predictions using KNN with k = 3:
+knn.pred <- knn(train.X, test.X, train.class, k = 3)
+mean(knn.pred == 1) # 56.96% observations classified as a 1 (i.e. above median mpg)
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Fraction of correct predictions:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+Testing **k = 10**:
+
+```{r 14h k of 10}
+set.seed(5)
+
+# Predictions using KNN with k = 10:
+knn.pred <- knn(train.X, test.X, train.class, k = 10)
+mean(knn.pred == 1) # 59.49% observations classified 1 (i.e. above median mpg)
+
+# Confusion Matrix:
+table(knn.pred, test.class)
+
+# Fraction of correct predictions:
+mean(knn.pred == test.class)
+
+# Test Error:
+mean(knn.pred != test.class)
+```
+
+Under KNN, the **test error** is minimized when $k=1$ at approximately 3.80%. Notably, the other trial with $k=2,3,10$ each resulted in the same, if not lower, **test error** rate than the previous three methods, respectively.
+
+Therefore, it appears that KNN is the best method for accurately predicting *mpg01*.
